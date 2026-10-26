@@ -165,7 +165,7 @@
 #    include <windows.h>
 #    include <direct.h>
 #    include <io.h>
-#    include <shellapi.h>
+// #    include <shellapi.h>
 #else
 #    ifdef __APPLE__
 #        include <mach-o/dyld.h>

@@ -12,3 +12,4 @@ echo ----------------------------------------
 type "%file%"
 
 del "%TEMP%\catfile_selection.txt" >nul 2>&1
+

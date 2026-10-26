@@ -1,17 +1,33 @@
-
-
+#include "glad/glad.h"
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
-#include "game.h"
+#if defined(_WIN32)
+#define GLFW_EXPOSE_NATIVE_WIN32
+#include <GLFW/glfw3native.h>
+#ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
+#define DWMWA_USE_IMMERSIVE_DARK_MODE 20
+#endif
+#endif
 
+#include "game.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 
+#define SCALE 50
+#define WINDOW_WIDTH (SCALE*16)
+#define WINDOW_HEIGHT (SCALE*10)
 
-void game_run(void) {
+
+static void internal_glfw_error_callback(int code, const char *description) {
+    fprintf(stderr, "GLFW error %d: %s\n", code, description);
+}
+
+void game_run() {
+    glfwSetErrorCallback(internal_glfw_error_callback);
+
     if (!glfwInit()) {
         fprintf(stderr, "ERROR: failed to initialize glfw window %s\n", strerror(errno));
         exit(EXIT_FAILURE);
@@ -21,14 +37,78 @@ void game_run(void) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow *window = glfwCreateWindow(800, 600, "sample window", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "sample window", NULL, NULL);
+    if (!window) {
+        fprintf(stderr, "ERROR: failed to create GLFW window\n");
+        glfwTerminate();
+        exit(EXIT_FAILURE);
+    }
+
+#if defined(_WIN32)
+    HWND hwnd = glfwGetWin32Window(window);
+
+    // Load user32.dll dynamically to avoid missing symbol/link errors with TCC
+    HMODULE hUser32 = LoadLibraryA("user32.dll");
+    if (hUser32) {
+        typedef BOOL (WINAPI *PFNSYSTEMPARAMETERSINFOA)(UINT, UINT, PVOID, UINT);
+        typedef BOOL (WINAPI *PFNSETWINDOWPOS)(HWND, HWND, int, int, int, int, UINT);
+
+        PFNSYSTEMPARAMETERSINFOA pSystemParametersInfoA = (PFNSYSTEMPARAMETERSINFOA)GetProcAddress(hUser32, "SystemParametersInfoA");
+        PFNSETWINDOWPOS pSetWindowPos = (PFNSETWINDOWPOS)GetProcAddress(hUser32, "SetWindowPos");
+
+        if (pSystemParametersInfoA && pSetWindowPos) {
+            RECT rcArea;
+            pSystemParametersInfoA(SPI_GETWORKAREA, 0, &rcArea, 0);
+            
+            int screenWidth = rcArea.right - rcArea.left;
+            int screenHeight = rcArea.bottom - rcArea.top;
+            int winX = rcArea.left + (screenWidth - WINDOW_WIDTH) / 2;
+            int winY = rcArea.top + (screenHeight - WINDOW_HEIGHT) / 2;
+            pSetWindowPos(hwnd, NULL, winX, winY, WINDOW_WIDTH, WINDOW_HEIGHT, SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+
+        FreeLibrary(hUser32);
+    }
+    
+    // Load dwmapi.dll dynamically for Dark Mode
+    HMODULE hDwmapi = LoadLibraryA("dwmapi.dll");
+    if (hDwmapi) {
+        typedef HRESULT (WINAPI *PFNDWMSETWINDOWATTRIBUTE)(HWND, DWORD, LPCVOID, DWORD);
+        PFNDWMSETWINDOWATTRIBUTE pDwmSetWindowAttribute = (PFNDWMSETWINDOWATTRIBUTE)GetProcAddress(hDwmapi, "DwmSetWindowAttribute");
+        
+        if (pDwmSetWindowAttribute) {
+            BOOL useDark = TRUE;
+            pDwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &useDark, sizeof(useDark));
+        }
+
+        FreeLibrary(hDwmapi);
+    }
+#endif
+
+    glfwMakeContextCurrent(window);
+    glfwSwapInterval(1);
+
+    if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
+        fprintf(stderr, "%s",  "error initializing GLAD\n");
+        glfwTerminate();
+        exit(1);
+    }
 
     while (!glfwWindowShouldClose(window)) {
+        game_on_update();
+        game_on_render();
+
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
+    glfwDestroyWindow(window);
     glfwTerminate();
 }
 
+void game_on_update() {
+}
+
+void game_on_render() {
+}
 

@@ -1,4 +1,3 @@
-
 #define NOB_IMPLEMENTATION
 #include "nob.h"
 
@@ -9,11 +8,11 @@ int main(int argc, char **argv) {
             "tcc", 
             "-Wall", "-Wextra", 
             "-I", "external/glfw-3.5.1.bin.WIN64/include",
+            "-I", "external/glad/include",
             "-o", "build/app.exe", 
-
             "src/main.c",
             "src/game.c",
-
+            "external/glad/src/glad.c",
             "-L", "external/glfw-3.5.1.bin.WIN64/lib-mingw-w64",
             "-lglfw3",
             "-lopengl32",
