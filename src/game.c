@@ -1,3 +1,4 @@
+
 #include "glad/glad.h"
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -11,22 +12,40 @@
 #endif
 
 #include "game.h"
+#include "state.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
 
-#define SCALE 50
-#define WINDOW_WIDTH (SCALE*16)
-#define WINDOW_HEIGHT (SCALE*10)
+#define SCALE 60
+#define WINDOW_WIDTH (SCALE * 16)
+#define WINDOW_HEIGHT (SCALE * 10)
 
+static State state = {0};
 
-static void internal_glfw_error_callback(int code, const char *description) {
+void _game_init() {
+    renderer_init(&state.renderer);
+}
+
+void _game_shutdown() {
+    renderer_shutdown(&state.renderer);
+}
+
+void _game_on_update() {
+    renderer_update(&state.renderer);
+}
+
+void _game_on_render() {
+}
+
+static void _glfw_error_callback(int code, const char *description) {
     fprintf(stderr, "GLFW error %d: %s\n", code, description);
 }
 
-void game_run() {
-    glfwSetErrorCallback(internal_glfw_error_callback);
+void game_run(int argc, char *argv[]) {
+    glfwSetErrorCallback(_glfw_error_callback);
 
     if (!glfwInit()) {
         fprintf(stderr, "ERROR: failed to initialize glfw window %s\n", strerror(errno));
@@ -47,7 +66,6 @@ void game_run() {
 #if defined(_WIN32)
     HWND hwnd = glfwGetWin32Window(window);
 
-    // Load user32.dll dynamically to avoid missing symbol/link errors with TCC
     HMODULE hUser32 = LoadLibraryA("user32.dll");
     if (hUser32) {
         typedef BOOL (WINAPI *PFNSYSTEMPARAMETERSINFOA)(UINT, UINT, PVOID, UINT);
@@ -70,7 +88,6 @@ void game_run() {
         FreeLibrary(hUser32);
     }
     
-    // Load dwmapi.dll dynamically for Dark Mode
     HMODULE hDwmapi = LoadLibraryA("dwmapi.dll");
     if (hDwmapi) {
         typedef HRESULT (WINAPI *PFNDWMSETWINDOWATTRIBUTE)(HWND, DWORD, LPCVOID, DWORD);
@@ -89,26 +106,24 @@ void game_run() {
     glfwSwapInterval(1);
 
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
-        fprintf(stderr, "%s",  "error initializing GLAD\n");
+        fprintf(stderr, "%s", "error initializing GLAD\n");
         glfwTerminate();
         exit(1);
     }
+    // both and glfw opengl is initialized
+
+    _game_init();
 
     while (!glfwWindowShouldClose(window)) {
-        game_on_update();
-        game_on_render();
+        _game_on_update();
+        _game_on_render();
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
+    _game_shutdown();
     glfwDestroyWindow(window);
     glfwTerminate();
-}
-
-void game_on_update() {
-}
-
-void game_on_render() {
 }
 
